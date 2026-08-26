@@ -56,7 +56,7 @@ values
   '[]'::jsonb,
   false, 100
 )
-on conflict (template_slug, clause_key) do update set
+on conflict (coalesce(template_slug, ''), clause_key) do update set
   title = excluded.title,
   category = excluded.category,
   default_body = excluded.default_body,
@@ -102,7 +102,7 @@ values
   'This Agreement constitutes the entire understanding between the parties with respect to its subject matter and supersedes all prior discussions, negotiations, and agreements, whether written or oral, relating to such subject matter. Any amendment must be in writing and signed by both parties.',
   '[]'::jsonb, true, 80
 )
-on conflict (template_slug, clause_key) do update set
+on conflict (coalesce(template_slug, ''), clause_key) do update set
   title = excluded.title,
   category = excluded.category,
   default_body = excluded.default_body,
@@ -137,7 +137,7 @@ values
   'Neither party shall issue any press release or public statement regarding the existence or subject matter of the discussions contemplated by this Agreement without the prior written consent of the other party.',
   '[]'::jsonb, true, 48
 )
-on conflict (template_slug, clause_key) do update set
+on conflict (coalesce(template_slug, ''), clause_key) do update set
   title = excluded.title,
   category = excluded.category,
   default_body = excluded.default_body,

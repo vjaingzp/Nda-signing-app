@@ -106,15 +106,28 @@ create table if not exists public.clause_library (
   guided_fields     jsonb not null default '[]'::jsonb, -- schema for guided-edit fields on core clauses
   is_removable      boolean not null default false,     -- core clauses: always false
   sort_order        int not null default 0,
-  created_at        timestamptz not null default now(),
-  unique (template_slug, clause_key)
+  created_at        timestamptz not null default now()
 );
+
+-- A plain `unique (template_slug, clause_key)` wouldn't dedupe shared clauses:
+-- Postgres unique constraints treat NULL <> NULL, so every row with
+-- template_slug = null (i.e. "applies to all templates") would be its own
+-- distinct entry. coalesce() normalizes null to '' so those rows conflict
+-- with each other correctly, and seed.sql's ON CONFLICT target matches this
+-- index expression exactly.
+create unique index if not exists clause_library_template_clause_key_idx
+  on public.clause_library (coalesce(template_slug, ''), clause_key);
 
 -- -------------------------------------------------------------------------
 -- DOCUMENTS  (one row per NDA, whether generated from a template or an
 -- uploaded PDF)
 -- -------------------------------------------------------------------------
 
+-- expires_at is a plain column (not `generated always as`) because
+-- timestamptz + interval is STABLE, not IMMUTABLE, in Postgres — generated
+-- columns require an immutable expression. Its default mirrors created_at's
+-- default of now(), so both resolve to the same instant on insert and the
+-- app never overrides either column.
 create table if not exists public.documents (
   id                    uuid primary key default gen_random_uuid(),
   user_id               uuid not null references public.profiles(id) on delete cascade,
@@ -140,7 +153,7 @@ create table if not exists public.documents (
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now(),
   finalized_at          timestamptz,                     -- when it left 'draft' for good
-  expires_at            timestamptz generated always as (created_at + interval '30 days') stored,
+  expires_at            timestamptz not null default (now() + interval '30 days'),
   deletion_reminder_sent_at timestamptz,
   deleted_at             timestamptz
 );
@@ -217,7 +230,9 @@ create index if not exists signature_placements_document_id_idx on public.signat
 create table if not exists public.signing_links (
   id            uuid primary key default gen_random_uuid(),
   document_id   uuid not null references public.documents(id) on delete cascade,
-  token         text not null unique default encode(gen_random_bytes(24), 'base64url'),
+  -- hex, not base64url: Postgres's encode() only supports 'base64' | 'hex' | 'escape',
+  -- and plain base64 isn't URL-safe (+, /, = need escaping), so hex avoids both problems.
+  token         text not null unique default encode(gen_random_bytes(24), 'hex'),
   party_role    party_role not null,
   expires_at    timestamptz not null default (now() + interval '30 days'),
   used_at       timestamptz,
