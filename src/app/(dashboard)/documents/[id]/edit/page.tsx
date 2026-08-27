@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { renderClauseBody } from "@/lib/nda/render-clause";
-import type { GuidedField, NdaType } from "@/types/database";
+import { getDocumentClauses } from "@/lib/nda/get-document-clauses";
+import type { NdaType } from "@/types/database";
 import { DetailsForm } from "./DetailsForm";
-import { ClausesEditor, type ClauseItem } from "./ClausesEditor";
+import { ClausesEditor } from "./ClausesEditor";
 
 export const metadata: Metadata = {
   title: "Edit NDA | NDA Generator",
@@ -58,56 +58,7 @@ export default async function EditDocumentPage({
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const { data: documentClauses } = await supabase
-    .from("document_clauses")
-    .select(
-      "id, clause_key, title, category, body, guided_field_values, is_removable, sort_order"
-    )
-    .eq("document_id", id)
-    .eq("is_included", true)
-    .order("sort_order");
-
-  const { data: libraryEntries } = await supabase
-    .from("clause_library")
-    .select("clause_key, template_slug, guided_fields")
-    .or(
-      document.template_slug
-        ? `template_slug.is.null,template_slug.eq.${document.template_slug}`
-        : "template_slug.is.null"
-    );
-
-  const guidedFieldsByKey = new Map<string, GuidedField[]>();
-  for (const entry of libraryEntries ?? []) {
-    // A template-specific override (if one exists) wins over the generic
-    // (template_slug = null) definition for the same clause_key.
-    if (!guidedFieldsByKey.has(entry.clause_key) || entry.template_slug !== null) {
-      guidedFieldsByKey.set(entry.clause_key, entry.guided_fields as GuidedField[]);
-    }
-  }
-
-  const clauseItems: ClauseItem[] = (documentClauses ?? []).map((clause) => {
-    const guidedFields = guidedFieldsByKey.get(clause.clause_key) ?? [];
-    const guidedFieldValues = clause.guided_field_values as Record<string, unknown>;
-    return {
-      id: clause.id,
-      clauseKey: clause.clause_key,
-      title: clause.title,
-      category: clause.category,
-      body: clause.body,
-      renderedBody:
-        clause.category === "core"
-          ? renderClauseBody({
-              body: clause.body,
-              guidedFields,
-              guidedFieldValues,
-              document,
-            })
-          : clause.body,
-      guidedFieldValues,
-      guidedFields,
-      isRemovable: clause.is_removable,
-    };
-  });
+  const clauseItems = await getDocumentClauses(supabase, document);
 
   return (
     <div className="flex flex-col gap-6">
@@ -141,6 +92,15 @@ export default async function EditDocumentPage({
         <div className="mt-4">
           <ClausesEditor documentId={document.id} clauses={clauseItems} />
         </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Link
+          href={`/documents/${document.id}/preview`}
+          className="rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+        >
+          Continue to preview →
+        </Link>
       </div>
     </div>
   );

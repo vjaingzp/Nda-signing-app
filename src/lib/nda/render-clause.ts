@@ -1,6 +1,6 @@
 import type { Document, GuidedField } from "@/types/database";
 
-function formatDate(value: string | null): string {
+export function formatDate(value: string | null): string {
   if (!value) return "[effective date not yet set]";
   return new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", {
     day: "numeric",

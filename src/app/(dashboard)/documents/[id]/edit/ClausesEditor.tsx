@@ -10,19 +10,10 @@ import {
   type ClauseActionState,
 } from "./clause-actions";
 import { inputClassName } from "@/components/ui/form-field";
-import type { ClauseCategory, GuidedField } from "@/types/database";
+import { type ClauseItem } from "@/lib/nda/get-document-clauses";
+import type { GuidedField } from "@/types/database";
 
-export interface ClauseItem {
-  id: string;
-  clauseKey: string;
-  title: string;
-  category: ClauseCategory;
-  body: string;
-  renderedBody: string;
-  guidedFieldValues: Record<string, unknown>;
-  guidedFields: GuidedField[];
-  isRemovable: boolean;
-}
+export type { ClauseItem };
 
 const initialState: ClauseActionState = {};
 
