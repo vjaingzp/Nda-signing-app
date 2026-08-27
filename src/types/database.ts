@@ -35,6 +35,9 @@ export type GuidedField = {
   options?: string[];
   placeholder?: string;
   required?: boolean;
+  // Used to fill in a sensible, complete sentence when the user hasn't
+  // customized this field yet, so a document reads cleanly with zero edits.
+  default?: string;
 };
 
 // ---------------------------------------------------------------------

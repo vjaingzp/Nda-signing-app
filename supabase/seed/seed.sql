@@ -34,8 +34,12 @@ insert into public.clause_library
 values
 (
   null, 'definition_of_confidential_information', 'Definition of Confidential Information', 'core',
-  'For the purposes of this Agreement, "Confidential Information" means any and all non-public information disclosed by one party ("Disclosing Party") to the other ("Receiving Party"), whether in written, oral, electronic, or other form, that is designated as confidential or that reasonably should be understood to be confidential given the nature of the information and the circumstances of disclosure. This includes, without limitation, information disclosed in connection with the following purpose: {{purpose}}.',
-  '[{"key":"purpose","label":"Purpose of disclosure","type":"textarea","placeholder":"e.g. evaluating a potential freelance engagement for website development","required":true}]'::jsonb,
+  'For the purposes of this Agreement, "Confidential Information" means any and all non-public information disclosed by one party ("Disclosing Party") to the other ("Receiving Party"), whether in written, oral, electronic, or other form, that is designated as confidential or that reasonably should be understood to be confidential given the nature of the information and the circumstances of disclosure. This includes, without limitation, information disclosed in connection with the following purpose: {{purpose}}. Confidential Information specifically includes {{includes}}. Confidential Information does not include information that {{excludes}}.',
+  '[
+    {"key":"purpose","label":"Purpose of disclosure","type":"textarea","placeholder":"e.g. evaluating a potential freelance engagement for website development","default":"the business relationship between the parties"},
+    {"key":"includes","label":"Confidential Information specifically includes","type":"textarea","placeholder":"e.g. source code, customer lists, financial projections","default":"any technical, business, financial, or other information disclosed in connection with that purpose"},
+    {"key":"excludes","label":"Excludes information that is","type":"textarea","placeholder":"e.g. already publicly known, or independently developed","default":"is or becomes publicly available through no fault of the Receiving Party, was already known to the Receiving Party prior to disclosure, is independently developed without use of the Confidential Information, or is rightfully received from a third party without breach of any confidentiality obligation"}
+  ]'::jsonb,
   false, 10
 ),
 (
@@ -47,7 +51,7 @@ values
 (
   null, 'term_and_duration', 'Term and Duration', 'core',
   'This Agreement shall remain in effect from the Effective Date and the confidentiality obligations herein shall survive for a period of {{term_months}} months following the date of disclosure of the relevant Confidential Information, regardless of any earlier termination of the business relationship between the parties.',
-  '[{"key":"term_months","label":"Confidentiality period (months)","type":"number","placeholder":"24","required":true}]'::jsonb,
+  '[]'::jsonb,
   false, 90
 ),
 (
@@ -64,6 +68,13 @@ on conflict (coalesce(template_slug, ''), clause_key) do update set
   is_removable = excluded.is_removable,
   sort_order = excluded.sort_order;
 
+-- Superseded by the "excludes" guided field on definition_of_confidential_information
+-- (kept as a standalone clause originally; the carve-outs now live on that
+-- core clause so they render with the rest of the definition and can't
+-- drift out of sync). Safe to re-run: no-ops once already deleted.
+delete from public.clause_library
+  where template_slug is null and clause_key = 'exclusions_from_confidential_information';
+
 -- -------------------------------------------------------------------------
 -- OPTIONAL CLAUSES (template_slug = null -> offered on every template)
 -- Freely editable and removable by the user.
@@ -72,11 +83,6 @@ on conflict (coalesce(template_slug, ''), clause_key) do update set
 insert into public.clause_library
   (template_slug, clause_key, title, category, default_body, guided_fields, is_removable, sort_order)
 values
-(
-  null, 'exclusions_from_confidential_information', 'Exclusions from Confidential Information', 'optional',
-  'Confidential Information does not include information that: (a) is or becomes publicly available through no fault of the Receiving Party; (b) was already known to the Receiving Party prior to disclosure, as shown by written records; (c) is independently developed by the Receiving Party without use of the Confidential Information; or (d) is rightfully received from a third party without breach of any confidentiality obligation.',
-  '[]'::jsonb, true, 30
-),
 (
   null, 'return_or_destruction_of_materials', 'Return or Destruction of Materials', 'optional',
   'Upon the Disclosing Party''s written request, or upon termination of the parties'' business relationship, the Receiving Party shall promptly return or destroy all documents, materials, and other tangible manifestations of the Confidential Information, and shall certify such return or destruction in writing if requested.',
