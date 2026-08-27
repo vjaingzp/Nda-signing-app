@@ -4,33 +4,11 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getDocumentClauses } from "@/lib/nda/get-document-clauses";
 import { formatDate } from "@/lib/nda/render-clause";
-import type { DocumentParty, PartyRole } from "@/types/database";
+import { partyDescription, partyLabel, partyRole } from "@/lib/nda/party-format";
 
 export const metadata: Metadata = {
   title: "Preview | NDA Generator",
 };
-
-function partyLabel(role: PartyRole, index: number): string {
-  if (role === "disclosing") return "Disclosing Party";
-  if (role === "receiving") return "Receiving Party";
-  return index === 0 ? "Party A" : "Party B";
-}
-
-type PreviewParty = Pick<
-  DocumentParty,
-  "role" | "party_type" | "full_name" | "company_name" | "address" | "email"
->;
-
-function partyDescription(party: PreviewParty | undefined): string {
-  if (!party) return "[party details not yet provided]";
-  const who =
-    party.party_type === "business" && party.company_name
-      ? `${party.full_name}, on behalf of ${party.company_name}`
-      : party.full_name;
-  const address = party.address ? `, of ${party.address}` : "";
-  const email = party.email ? ` (${party.email})` : "";
-  return `${who}${address}${email}`;
-}
 
 export default async function PreviewDocumentPage({
   params,
@@ -75,6 +53,12 @@ export default async function PreviewDocumentPage({
           </Link>
           <h1 className="mt-2 text-2xl font-semibold text-zinc-900">Preview</h1>
         </div>
+        <a
+          href={`/documents/${document.id}/pdf`}
+          className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+        >
+          Download PDF
+        </a>
       </div>
 
       {isIncomplete && (
@@ -102,13 +86,7 @@ export default async function PreviewDocumentPage({
           <ul className="mt-4 flex flex-col gap-2 leading-relaxed">
             {[0, 1].map((index) => {
               const party = parties?.[index];
-              const role =
-                party?.role ??
-                (document.nda_type === "mutual"
-                  ? "mutual"
-                  : index === 0
-                    ? "disclosing"
-                    : "receiving");
+              const role = partyRole(party, document.nda_type, index);
               return (
                 <li key={index}>
                   <span className="font-semibold">{partyLabel(role, index)}:</span>{" "}
@@ -143,13 +121,7 @@ export default async function PreviewDocumentPage({
           <div className="mt-8 grid grid-cols-1 gap-10 sm:grid-cols-2">
             {[0, 1].map((index) => {
               const party = parties?.[index];
-              const role =
-                party?.role ??
-                (document.nda_type === "mutual"
-                  ? "mutual"
-                  : index === 0
-                    ? "disclosing"
-                    : "receiving");
+              const role = partyRole(party, document.nda_type, index);
               return (
                 <div key={index} className="flex flex-col gap-4">
                   <p className="text-sm font-semibold">{partyLabel(role, index)}</p>
