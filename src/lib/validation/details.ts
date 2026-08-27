@@ -12,13 +12,25 @@ export const detailsFormSchema = z
 
     partyAType: partyTypeSchema,
     partyAFullName: z.string().trim().min(1, "Full name is required"),
-    partyACompanyName: z.string().trim().optional().default(""),
+    // The Business name input only exists in the DOM when partyAType is
+    // "business", so FormData.get() returns null (not undefined) the rest
+    // of the time — .optional() alone doesn't cover null, so it needs
+    // .nullish() plus a transform down to "".
+    partyACompanyName: z
+      .string()
+      .trim()
+      .nullish()
+      .transform((v) => v ?? ""),
     partyAAddress: z.string().trim().min(1, "Address is required"),
     partyAEmail: z.email("Enter a valid email address"),
 
     partyBType: partyTypeSchema,
     partyBFullName: z.string().trim().min(1, "Full name is required"),
-    partyBCompanyName: z.string().trim().optional().default(""),
+    partyBCompanyName: z
+      .string()
+      .trim()
+      .nullish()
+      .transform((v) => v ?? ""),
     partyBAddress: z.string().trim().min(1, "Address is required"),
     partyBEmail: z.email("Enter a valid email address"),
   })
