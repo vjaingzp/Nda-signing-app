@@ -59,6 +59,7 @@ export default async function EditDocumentPage({
   const today = new Date().toISOString().slice(0, 10);
 
   const clauseItems = await getDocumentClauses(supabase, document);
+  const locked = document.status === "completed";
 
   return (
     <div className="flex flex-col gap-6">
@@ -73,6 +74,17 @@ export default async function EditDocumentPage({
         </p>
       </div>
 
+      {locked && (
+        <div className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-800">
+          This document is fully signed and locked — no further edits are
+          possible.{" "}
+          <Link href={`/documents/${document.id}/preview`} className="font-medium underline">
+            View the signed document
+          </Link>
+          .
+        </div>
+      )}
+
       <DetailsForm
         documentId={document.id}
         ndaType={document.nda_type as NdaType}
@@ -80,6 +92,7 @@ export default async function EditDocumentPage({
         termMonths={document.term_months?.toString() ?? ""}
         partyA={partyA}
         partyB={partyB}
+        locked={locked}
       />
 
       <div>
@@ -90,18 +103,20 @@ export default async function EditDocumentPage({
           removed.
         </p>
         <div className="mt-4">
-          <ClausesEditor documentId={document.id} clauses={clauseItems} />
+          <ClausesEditor documentId={document.id} clauses={clauseItems} locked={locked} />
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <Link
-          href={`/documents/${document.id}/preview`}
-          className="rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
-        >
-          Continue to preview →
-        </Link>
-      </div>
+      {!locked && (
+        <div className="flex justify-end">
+          <Link
+            href={`/documents/${document.id}/preview`}
+            className="rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+          >
+            Continue to preview →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

@@ -20,6 +20,7 @@ interface DetailsFormProps {
   termMonths: string;
   partyA?: PartyDefaults;
   partyB?: PartyDefaults;
+  locked?: boolean;
 }
 
 const initialState: DetailsActionState = {};
@@ -139,6 +140,7 @@ export function DetailsForm({
   termMonths,
   partyA,
   partyB,
+  locked = false,
 }: DetailsFormProps) {
   const action = saveDocumentDetails.bind(null, documentId);
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -160,6 +162,7 @@ export function DetailsForm({
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
+      <fieldset disabled={locked} className="contents">
       <div className="rounded-xl border border-zinc-200 bg-white p-5">
         <h3 className="font-medium text-zinc-900">Agreement details</h3>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -216,6 +219,7 @@ export function DetailsForm({
           fieldErrors={state.fieldErrors}
         />
       </div>
+      </fieldset>
 
       {state.error && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>
@@ -226,15 +230,17 @@ export function DetailsForm({
         </p>
       )}
 
-      <div>
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-60"
-        >
-          {pending ? "Saving…" : "Save details"}
-        </button>
-      </div>
+      {!locked && (
+        <div>
+          <button
+            type="submit"
+            disabled={pending}
+            className="rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-60"
+          >
+            {pending ? "Saving…" : "Save details"}
+          </button>
+        </div>
+      )}
     </form>
   );
 }

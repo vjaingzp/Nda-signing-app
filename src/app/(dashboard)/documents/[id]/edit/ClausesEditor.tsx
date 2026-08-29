@@ -185,6 +185,7 @@ function ClauseRow({
   onDone,
   canMoveUp,
   canMoveDown,
+  locked,
 }: {
   documentId: string;
   index: number;
@@ -194,6 +195,7 @@ function ClauseRow({
   onDone: () => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  locked: boolean;
 }) {
   return (
     <div className="border-b border-zinc-200 py-6 last:border-b-0">
@@ -201,7 +203,7 @@ function ClauseRow({
         <h3 className="font-medium text-zinc-900">
           {index + 1}. {clause.title}
         </h3>
-        {!editing && (
+        {!editing && !locked && (
           <div className="flex shrink-0 items-center gap-3">
             {clause.category === "optional" && (
               <>
@@ -328,9 +330,11 @@ function AddClauseForm({ documentId, onDone }: { documentId: string; onDone: () 
 export function ClausesEditor({
   documentId,
   clauses,
+  locked = false,
 }: {
   documentId: string;
   clauses: ClauseItem[];
+  locked?: boolean;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
@@ -352,23 +356,26 @@ export function ClausesEditor({
             onDone={() => setEditingId(null)}
             canMoveUp={optionalIndex > 0}
             canMoveDown={optionalIndex !== -1 && optionalIndex < optionalIds.length - 1}
+            locked={locked}
           />
         );
       })}
 
-      <div className="py-6">
-        {addingNew ? (
-          <AddClauseForm documentId={documentId} onDone={() => setAddingNew(false)} />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setAddingNew(true)}
-            className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
-          >
-            + Add a clause
-          </button>
-        )}
-      </div>
+      {!locked && (
+        <div className="py-6">
+          {addingNew ? (
+            <AddClauseForm documentId={documentId} onDone={() => setAddingNew(false)} />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAddingNew(true)}
+              className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
+            >
+              + Add a clause
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

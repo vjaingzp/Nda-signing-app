@@ -1,9 +1,12 @@
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
+import { formatDateTime } from "./render-clause";
 
 export interface PdfPartyInfo {
   label: string;
   description: string;
   signatureName: string | null;
+  /** ISO timestamp if this party has signed; renders a signed block instead of blank lines. */
+  signedAt?: string | null;
 }
 
 export interface PdfClauseInfo {
@@ -86,7 +89,14 @@ export async function generateDocumentPdf(params: GeneratePdfParams): Promise<Ui
       if (y - lineHeight < MARGIN) newPage();
       const width = useFont.widthOfTextAtSize(line, size);
       const x = align === "center" ? (PAGE_WIDTH - width) / 2 : MARGIN;
-      page.drawText(line, { x, y: y - size, size, font: useFont, color: TEXT_COLOR });
+      // Each line is its own absolutely-positioned text object, with no
+      // literal character bridging it to the next — a real space is
+      // appended here (invisible, doesn't affect the width used for
+      // alignment above) so that anything reading the PDF by concatenating
+      // text runs rather than inferring gaps from geometry doesn't glue
+      // this line's last word to the next line's first word. Most visible
+      // at page breaks, since that's the largest geometric jump.
+      page.drawText(`${line} `, { x, y: y - size, size, font: useFont, color: TEXT_COLOR });
       y -= lineHeight;
     }
     y -= spacingAfter;
@@ -122,11 +132,16 @@ export async function generateDocumentPdf(params: GeneratePdfParams): Promise<Ui
 
   for (const party of parties) {
     addParagraph(party.label, { bold: true, spacingAfter: 8 });
-    addParagraph("Signature: ______________________________", { spacingAfter: 10 });
-    addParagraph(`Name: ${party.signatureName ?? "________________________"}`, {
-      spacingAfter: 10,
-    });
-    addParagraph("Date: ______________________________", { spacingAfter: 24 });
+    if (party.signedAt) {
+      addParagraph(`Signed by: ${party.signatureName}`, { spacingAfter: 6 });
+      addParagraph(`Date: ${formatDateTime(party.signedAt)}`, { spacingAfter: 24 });
+    } else {
+      addParagraph("Signature: ______________________________", { spacingAfter: 10 });
+      addParagraph(`Name: ${party.signatureName ?? "________________________"}`, {
+        spacingAfter: 10,
+      });
+      addParagraph("Date: ______________________________", { spacingAfter: 24 });
+    }
   }
 
   return pdfDoc.save();

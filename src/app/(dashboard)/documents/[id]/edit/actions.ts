@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { detailsFormSchema } from "@/lib/validation/details";
 import { firstFieldErrors } from "@/lib/validation/form-errors";
+import { assertDocumentEditable } from "@/lib/nda/assert-editable";
 import type { NdaType, PartyRole, PartyType } from "@/types/database";
 
 export interface DetailsActionState {
@@ -45,6 +46,9 @@ export async function saveDocumentDetails(
     return { error: "You must be logged in." };
   }
 
+  const editable = await assertDocumentEditable(supabase, documentId);
+  if (editable.error) return editable;
+
   const { data: document, error: documentFetchError } = await supabase
     .from("documents")
     .select("id, nda_type")
@@ -73,39 +77,51 @@ export async function saveDocumentDetails(
     return { error: "Couldn't save details. Try again." };
   }
 
-  const { error: deleteError } = await supabase
+  // Updated in place (by sort_order) rather than deleted and recreated:
+  // document_parties.id is now a foreign key target for signatures and
+  // signing_links (on delete cascade), so re-creating the rows on every
+  // save would silently wipe out an existing signature if details were
+  // ever edited again mid-signing.
+  const { data: existingParties } = await supabase
     .from("document_parties")
-    .delete()
-    .eq("document_id", documentId);
+    .select("id, sort_order")
+    .eq("document_id", documentId)
+    .order("sort_order");
 
-  if (deleteError) {
+  const partyAData = {
+    document_id: documentId,
+    role: roleA,
+    party_type: values.partyAType as PartyType,
+    full_name: values.partyAFullName,
+    company_name: values.partyAType === "business" ? values.partyACompanyName : null,
+    address: values.partyAAddress,
+    email: values.partyAEmail,
+    sort_order: 0,
+  };
+  const partyBData = {
+    document_id: documentId,
+    role: roleB,
+    party_type: values.partyBType as PartyType,
+    full_name: values.partyBFullName,
+    company_name: values.partyBType === "business" ? values.partyBCompanyName : null,
+    address: values.partyBAddress,
+    email: values.partyBEmail,
+    sort_order: 1,
+  };
+
+  const existingA = existingParties?.[0];
+  const { error: partyAError } = existingA
+    ? await supabase.from("document_parties").update(partyAData).eq("id", existingA.id)
+    : await supabase.from("document_parties").insert(partyAData);
+  if (partyAError) {
     return { error: "Couldn't save party details. Try again." };
   }
 
-  const { error: insertError } = await supabase.from("document_parties").insert([
-    {
-      document_id: documentId,
-      role: roleA,
-      party_type: values.partyAType as PartyType,
-      full_name: values.partyAFullName,
-      company_name: values.partyAType === "business" ? values.partyACompanyName : null,
-      address: values.partyAAddress,
-      email: values.partyAEmail,
-      sort_order: 0,
-    },
-    {
-      document_id: documentId,
-      role: roleB,
-      party_type: values.partyBType as PartyType,
-      full_name: values.partyBFullName,
-      company_name: values.partyBType === "business" ? values.partyBCompanyName : null,
-      address: values.partyBAddress,
-      email: values.partyBEmail,
-      sort_order: 1,
-    },
-  ]);
-
-  if (insertError) {
+  const existingB = existingParties?.[1];
+  const { error: partyBError } = existingB
+    ? await supabase.from("document_parties").update(partyBData).eq("id", existingB.id)
+    : await supabase.from("document_parties").insert(partyBData);
+  if (partyBError) {
     return { error: "Couldn't save party details. Try again." };
   }
 

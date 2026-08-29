@@ -9,6 +9,19 @@ export function formatDate(value: string | null): string {
   });
 }
 
+/** Formats a signature's `signed_at` timestamp for display (date + time, IST). */
+export function formatDateTime(value: string): string {
+  return new Date(value).toLocaleString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Kolkata",
+    timeZoneName: "short",
+  });
+}
+
 /**
  * Resolves {{key}} placeholders in a core clause's raw template.
  *

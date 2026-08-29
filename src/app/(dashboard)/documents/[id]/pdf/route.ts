@@ -1,22 +1,22 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getDocumentClauses } from "@/lib/nda/get-document-clauses";
-import { generateDocumentPdf, type PdfPartyInfo } from "@/lib/nda/generate-pdf";
-import { formatDate } from "@/lib/nda/render-clause";
-import { partyDescription, partyLabel, partyRole } from "@/lib/nda/party-format";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getDocumentPdfBytes } from "@/lib/nda/serve-document-pdf";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = await createClient();
 
+  // Ownership check via the regular RLS-scoped client; the actual PDF
+  // bytes (including, once complete, the frozen signed copy in private
+  // Storage) are fetched with the admin client since there are no
+  // client-facing storage policies on that bucket.
+  const supabase = await createClient();
   const { data: document } = await supabase
     .from("documents")
-    .select(
-      "id, title, nda_type, template_slug, effective_date, term_months, governing_law"
-    )
+    .select("id")
     .eq("id", id)
     .single();
 
@@ -24,41 +24,17 @@ export async function GET(
     notFound();
   }
 
-  const { data: partyRows } = await supabase
-    .from("document_parties")
-    .select("role, party_type, full_name, company_name, address, email, sort_order")
-    .eq("document_id", id)
-    .order("sort_order");
+  const result = await getDocumentPdfBytes(createAdminClient(), id);
+  if (!result) {
+    notFound();
+  }
 
-  const clauses = await getDocumentClauses(supabase, document);
-
-  const parties: PdfPartyInfo[] = [0, 1].map((index) => {
-    const party = partyRows?.[index];
-    const role = partyRole(party, document.nda_type, index);
-    return {
-      label: partyLabel(role, index),
-      description: partyDescription(party),
-      signatureName: party?.full_name ?? null,
-    };
-  });
-
-  const pdfBytes = await generateDocumentPdf({
-    effectiveDateText: formatDate(document.effective_date),
-    parties,
-    clauses: clauses.map((clause) => ({
-      title: clause.title,
-      body: clause.renderedBody,
-    })),
-  });
-
-  const filename = `${document.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`;
-
-  // Re-wrapped because TS's Response body type rejects pdf-lib's
-  // Uint8Array<ArrayBufferLike> as-is; a fresh Uint8Array satisfies it.
-  return new Response(new Uint8Array(pdfBytes), {
+  // Re-wrapped because TS's Response body type rejects Uint8Array<ArrayBufferLike>
+  // as-is; a fresh Uint8Array satisfies it.
+  return new Response(new Uint8Array(result.bytes), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `attachment; filename="${result.filename}"`,
     },
   });
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { assertDocumentEditable } from "@/lib/nda/assert-editable";
 import type { GuidedField } from "@/types/database";
 
 export interface ClauseActionState {
@@ -43,6 +44,9 @@ export async function saveGuidedFields(
   formData: FormData
 ): Promise<ClauseActionState> {
   const supabase = await createClient();
+
+  const editable = await assertDocumentEditable(supabase, documentId);
+  if (editable.error) return editable;
 
   const { data: clause, error: clauseError } = await supabase
     .from("document_clauses")
@@ -109,6 +113,10 @@ export async function saveOptionalClauseText(
   }
 
   const supabase = await createClient();
+
+  const editable = await assertDocumentEditable(supabase, documentId);
+  if (editable.error) return editable;
+
   const { error } = await supabase
     .from("document_clauses")
     .update({ title: title.trim(), body: body.trim() })
@@ -126,6 +134,10 @@ export async function saveOptionalClauseText(
 
 export async function removeClause(documentId: string, clauseId: string) {
   const supabase = await createClient();
+
+  const editable = await assertDocumentEditable(supabase, documentId);
+  if (editable.error) return;
+
   await supabase
     .from("document_clauses")
     .update({ is_included: false })
@@ -154,6 +166,9 @@ export async function addCustomClause(
   }
 
   const supabase = await createClient();
+
+  const editable = await assertDocumentEditable(supabase, documentId);
+  if (editable.error) return editable;
 
   const { data: last } = await supabase
     .from("document_clauses")
@@ -188,6 +203,9 @@ export async function moveClause(
   direction: "up" | "down"
 ) {
   const supabase = await createClient();
+
+  const editable = await assertDocumentEditable(supabase, documentId);
+  if (editable.error) return;
 
   const { data: clauses } = await supabase
     .from("document_clauses")

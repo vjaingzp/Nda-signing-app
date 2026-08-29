@@ -218,13 +218,14 @@ type SignaturePlacementUpdate = Partial<SignaturePlacementInsert>;
 export type SigningLink = {
   id: string;
   document_id: string;
+  party_id: string;
   token: string;
   party_role: PartyRole;
   expires_at: string;
   used_at: string | null;
   created_at: string;
 };
-type SigningLinkInsert = Pick<SigningLink, "document_id" | "party_role"> &
+type SigningLinkInsert = Pick<SigningLink, "document_id" | "party_id" | "party_role"> &
   Partial<Pick<SigningLink, "id" | "token" | "expires_at" | "used_at" | "created_at">>;
 type SigningLinkUpdate = Partial<SigningLinkInsert>;
 
@@ -234,6 +235,7 @@ type SigningLinkUpdate = Partial<SigningLinkInsert>;
 export type SignatureRecord = {
   id: string;
   document_id: string;
+  party_id: string;
   signing_link_id: string | null;
   party_role: PartyRole;
   signer_name: string;
@@ -247,7 +249,7 @@ export type SignatureRecord = {
 };
 type SignatureInsert = Pick<
   SignatureRecord,
-  "document_id" | "party_role" | "signer_name" | "typed_signature"
+  "document_id" | "party_id" | "party_role" | "signer_name" | "typed_signature"
 > &
   Partial<
     Pick<

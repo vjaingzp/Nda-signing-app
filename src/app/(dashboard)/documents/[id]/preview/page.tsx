@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getDocumentClauses } from "@/lib/nda/get-document-clauses";
 import { formatDate } from "@/lib/nda/render-clause";
 import { partyDescription, partyLabel, partyRole } from "@/lib/nda/party-format";
+import { DocumentCard, type DocumentCardParty } from "@/components/nda/DocumentCard";
+import { SigningPanel } from "./SigningPanel";
 
 export const metadata: Metadata = {
   title: "Preview | NDA Generator",
@@ -30,16 +32,62 @@ export default async function PreviewDocumentPage({
     notFound();
   }
 
-  const { data: parties } = await supabase
+  const { data: partyRows } = await supabase
     .from("document_parties")
-    .select("role, party_type, full_name, company_name, address, email, sort_order")
+    .select("id, role, party_type, full_name, company_name, address, email, sort_order")
     .eq("document_id", id)
     .order("sort_order");
+  const partyRecords = partyRows ?? [];
+
+  const { data: signatureRows } = await supabase
+    .from("signatures")
+    .select("party_id, signer_name, signed_at")
+    .eq("document_id", id);
+  const signaturesByPartyId = new Map((signatureRows ?? []).map((s) => [s.party_id, s]));
+
+  const { data: signingLinkRow } = await supabase
+    .from("signing_links")
+    .select("token")
+    .eq("document_id", id)
+    .eq("party_id", partyRecords[1]?.id ?? "")
+    .is("used_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   const clauses = await getDocumentClauses(supabase, document);
 
   const isIncomplete =
-    !document.effective_date || !document.term_months || (parties?.length ?? 0) < 2;
+    !document.effective_date || !document.term_months || partyRecords.length < 2;
+
+  const cardParties: DocumentCardParty[] = [0, 1].map((index) => {
+    const party = partyRecords[index];
+    const signature = party ? signaturesByPartyId.get(party.id) : undefined;
+    const role = partyRole(party, document.nda_type, index);
+    return {
+      label: partyLabel(role, index),
+      description: partyDescription(party),
+      signerName: signature?.signer_name ?? party?.full_name ?? null,
+      signedAt: signature?.signed_at ?? null,
+    };
+  });
+
+  const partyStatuses = [0, 1].map((index) => {
+    const party = partyRecords[index];
+    const signature = party ? signaturesByPartyId.get(party.id) : undefined;
+    const role = partyRole(party, document.nda_type, index);
+    return {
+      label: partyLabel(role, index),
+      fullName: party?.full_name ?? "",
+      signerName: signature?.signer_name ?? null,
+      signedAt: signature?.signed_at ?? null,
+    };
+  });
+
+  const signingLinkUrl = signingLinkRow
+    ? `${process.env.NEXT_PUBLIC_APP_URL}/sign/${signingLinkRow.token}`
+    : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -61,7 +109,13 @@ export default async function PreviewDocumentPage({
         </a>
       </div>
 
-      {isIncomplete && (
+      {document.status === "completed" && (
+        <div className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-800">
+          This document is fully signed and locked — no further edits are possible.
+        </div>
+      )}
+
+      {isIncomplete && document.status !== "completed" && (
         <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
           This document isn&apos;t fully filled in yet, so some details below
           appear as placeholders.{" "}
@@ -72,76 +126,25 @@ export default async function PreviewDocumentPage({
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-3xl rounded-xl border border-zinc-200 bg-white p-10 shadow-sm sm:p-14">
-        <div className="font-serif text-zinc-900">
-          <h2 className="text-center text-xl font-bold tracking-wide">
-            NON-DISCLOSURE AGREEMENT
-          </h2>
+      <DocumentCard
+        effectiveDateText={formatDate(document.effective_date)}
+        parties={cardParties}
+        clauses={clauses.map((c) => ({
+          id: c.id,
+          title: c.title,
+          renderedBody: c.renderedBody,
+        }))}
+      />
 
-          <p className="mt-8 leading-relaxed">
-            This Non-Disclosure Agreement (the &quot;Agreement&quot;) is made and
-            entered into on {formatDate(document.effective_date)}, by and between:
-          </p>
-
-          <ul className="mt-4 flex flex-col gap-2 leading-relaxed">
-            {[0, 1].map((index) => {
-              const party = parties?.[index];
-              const role = partyRole(party, document.nda_type, index);
-              return (
-                <li key={index}>
-                  <span className="font-semibold">{partyLabel(role, index)}:</span>{" "}
-                  {partyDescription(party)}.
-                </li>
-              );
-            })}
-          </ul>
-
-          <p className="mt-4 leading-relaxed">
-            (each a &quot;Party&quot; and, collectively, the &quot;Parties&quot;).
-          </p>
-
-          <div className="mt-10 flex flex-col gap-6">
-            {clauses.map((clause, index) => (
-              <div key={clause.id}>
-                <h3 className="font-semibold">
-                  {index + 1}. {clause.title}
-                </h3>
-                <p className="mt-1 whitespace-pre-line leading-relaxed">
-                  {clause.renderedBody}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <p className="mt-10 leading-relaxed">
-            IN WITNESS WHEREOF, the Parties have executed this Agreement as of
-            the date first written above.
-          </p>
-
-          <div className="mt-8 grid grid-cols-1 gap-10 sm:grid-cols-2">
-            {[0, 1].map((index) => {
-              const party = parties?.[index];
-              const role = partyRole(party, document.nda_type, index);
-              return (
-                <div key={index} className="flex flex-col gap-4">
-                  <p className="text-sm font-semibold">{partyLabel(role, index)}</p>
-                  <div className="border-b border-zinc-400 pb-1 text-sm text-zinc-400">
-                    Signature
-                  </div>
-                  <div className="border-b border-zinc-400 pb-1 text-sm">
-                    {party?.full_name ?? (
-                      <span className="text-zinc-400">Name not yet provided</span>
-                    )}
-                  </div>
-                  <div className="border-b border-zinc-400 pb-1 text-sm text-zinc-400">
-                    Date
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+      {!isIncomplete && (
+        <SigningPanel
+          documentId={document.id}
+          status={document.status}
+          ownerParty={partyStatuses[0]}
+          counterpartyParty={partyStatuses[1]}
+          signingLinkUrl={signingLinkUrl}
+        />
+      )}
     </div>
   );
 }
