@@ -1,0 +1,85 @@
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+
+export interface StampPlacement {
+  role: "uploader" | "counterparty";
+  fieldType: "signature" | "date";
+  pageNumber: number; // 1-indexed
+  /** Normalized 0..1, relative to page width, measured from the left. */
+  x: number;
+  /** Normalized 0..1, relative to page height, measured from the top. */
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface StampSignature {
+  role: "uploader" | "counterparty";
+  signerName: string;
+  signedAt: string; // ISO timestamp
+}
+
+function formatShortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+/**
+ * Draws each party's typed signature (or the date they signed) into the
+ * marked boxes on the original uploaded PDF. A placement whose party
+ * never actually signed is left blank rather than guessed at — this only
+ * runs once every party has signed anyway (see finalizeSignaturesIfComplete).
+ */
+export async function stampUploadedPdf(
+  originalBytes: Uint8Array,
+  placements: StampPlacement[],
+  signatures: StampSignature[]
+): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.load(originalBytes);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const signatureByRole = new Map(signatures.map((s) => [s.role, s]));
+
+  for (const placement of placements) {
+    const pageIndex = placement.pageNumber - 1;
+    if (pageIndex < 0 || pageIndex >= pdfDoc.getPageCount()) continue;
+
+    const signature = signatureByRole.get(placement.role);
+    if (!signature) continue;
+
+    const text =
+      placement.fieldType === "date" ? formatShortDate(signature.signedAt) : signature.signerName;
+
+    const page = pdfDoc.getPage(pageIndex);
+    const { width: pageWidth, height: pageHeight } = page.getSize();
+
+    const boxLeft = placement.x * pageWidth;
+    const boxWidth = placement.width * pageWidth;
+    const boxHeight = placement.height * pageHeight;
+    // placement.y is measured from the page's TOP; pdf-lib's origin is
+    // bottom-left, so the box's bottom edge in pdf-lib space is the page
+    // height minus the distance from the top to the box's bottom edge.
+    const boxBottom = pageHeight - (placement.y + placement.height) * pageHeight;
+
+    const fontSize = Math.max(8, Math.min(14, boxHeight * 0.6));
+
+    page.drawText(text, {
+      x: boxLeft + 2,
+      y: boxBottom + (boxHeight - fontSize) / 2,
+      size: fontSize,
+      font,
+      color: rgb(0.1, 0.1, 0.5),
+      maxWidth: boxWidth - 4,
+    });
+
+    page.drawLine({
+      start: { x: boxLeft, y: boxBottom },
+      end: { x: boxLeft + boxWidth, y: boxBottom },
+      thickness: 0.75,
+      color: rgb(0.6, 0.6, 0.6),
+    });
+  }
+
+  return pdfDoc.save();
+}

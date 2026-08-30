@@ -24,7 +24,7 @@ export default async function PreviewDocumentPage({
   const { data: document } = await supabase
     .from("documents")
     .select(
-      "id, title, nda_type, template_slug, status, effective_date, term_months, governing_law"
+      "id, title, source, nda_type, template_slug, status, effective_date, term_months, governing_law"
     )
     .eq("id", id)
     .single();
@@ -32,6 +32,8 @@ export default async function PreviewDocumentPage({
   if (!document) {
     notFound();
   }
+
+  const isUpload = document.source === "upload";
 
   const { data: partyRows } = await supabase
     .from("document_parties")
@@ -57,22 +59,9 @@ export default async function PreviewDocumentPage({
     .limit(1)
     .maybeSingle();
 
-  const clauses = await getDocumentClauses(supabase, document);
-
-  const isIncomplete =
-    !document.effective_date || !document.term_months || partyRecords.length < 2;
-
-  const cardParties: DocumentCardParty[] = [0, 1].map((index) => {
-    const party = partyRecords[index];
-    const signature = party ? signaturesByPartyId.get(party.id) : undefined;
-    const role = partyRole(party, document.nda_type, index);
-    return {
-      label: partyLabel(role, index),
-      description: partyDescription(party),
-      signerName: signature?.signer_name ?? party?.full_name ?? null,
-      signedAt: signature?.signed_at ?? null,
-    };
-  });
+  const isIncomplete = isUpload
+    ? partyRecords.length < 2
+    : !document.effective_date || !document.term_months || partyRecords.length < 2;
 
   const partyStatuses = [0, 1].map((index) => {
     const party = partyRecords[index];
@@ -91,16 +80,36 @@ export default async function PreviewDocumentPage({
     : null;
 
   const isPaid = await hasSucceededPayment(supabase, id);
+  const backHref = isUpload ? `/documents/${id}/placements` : `/documents/${id}/edit`;
+
+  let cardParties: DocumentCardParty[] = [];
+  let cardClauses: { id: string; title: string; renderedBody: string }[] = [];
+  if (!isUpload) {
+    cardParties = [0, 1].map((index) => {
+      const party = partyRecords[index];
+      const signature = party ? signaturesByPartyId.get(party.id) : undefined;
+      const role = partyRole(party, document.nda_type, index);
+      return {
+        label: partyLabel(role, index),
+        description: partyDescription(party),
+        signerName: signature?.signer_name ?? party?.full_name ?? null,
+        signedAt: signature?.signed_at ?? null,
+      };
+    });
+    const clauses = await getDocumentClauses(supabase, document);
+    cardClauses = clauses.map((c) => ({
+      id: c.id,
+      title: c.title,
+      renderedBody: c.renderedBody,
+    }));
+  }
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <Link
-            href={`/documents/${document.id}/edit`}
-            className="text-sm text-zinc-500 hover:underline"
-          >
-            ← Back to edit
+          <Link href={backHref} className="text-sm text-zinc-500 hover:underline">
+            ← Back to {isUpload ? "recipients & placements" : "edit"}
           </Link>
           <h1 className="mt-2 text-2xl font-semibold text-zinc-900">Preview</h1>
         </div>
@@ -113,6 +122,7 @@ export default async function PreviewDocumentPage({
           </Link>
           <a
             href={`/documents/${document.id}/pdf`}
+            download
             className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
           >
             Download PDF
@@ -145,24 +155,31 @@ export default async function PreviewDocumentPage({
 
       {isIncomplete && !["completed", "voided"].includes(document.status) && (
         <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          This document isn&apos;t fully filled in yet, so some details below
-          appear as placeholders.{" "}
-          <Link href={`/documents/${document.id}/edit`} className="font-medium underline">
-            Go back and finish the details
+          {isUpload
+            ? "The counterparty hasn't been named yet."
+            : "This document isn't fully filled in yet, so some details below appear as placeholders."}{" "}
+          <Link href={backHref} className="font-medium underline">
+            Go back and finish that
           </Link>
           .
         </div>
       )}
 
-      <DocumentCard
-        effectiveDateText={formatDate(document.effective_date)}
-        parties={cardParties}
-        clauses={clauses.map((c) => ({
-          id: c.id,
-          title: c.title,
-          renderedBody: c.renderedBody,
-        }))}
-      />
+      {isUpload ? (
+        <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+          <iframe
+            src={`/documents/${document.id}/pdf`}
+            title={document.title}
+            className="h-[800px] w-full"
+          />
+        </div>
+      ) : (
+        <DocumentCard
+          effectiveDateText={formatDate(document.effective_date)}
+          parties={cardParties}
+          clauses={cardClauses}
+        />
+      )}
 
       {!isIncomplete && (
         <SigningPanel

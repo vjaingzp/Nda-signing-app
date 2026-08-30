@@ -18,6 +18,8 @@ export function partyRole(
 export function partyLabel(role: PartyRole, index: number): string {
   if (role === "disclosing") return "Disclosing Party";
   if (role === "receiving") return "Receiving Party";
+  if (role === "uploader") return "Uploader";
+  if (role === "counterparty") return "Counterparty";
   return index === 0 ? "Party A" : "Party B";
 }
 

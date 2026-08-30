@@ -61,7 +61,7 @@ export default async function SignPage({
   const { data: document } = await admin
     .from("documents")
     .select(
-      "id, title, nda_type, template_slug, status, effective_date, term_months, governing_law"
+      "id, title, source, nda_type, template_slug, status, effective_date, term_months, governing_law"
     )
     .eq("id", link.document_id)
     .single();
@@ -99,7 +99,8 @@ export default async function SignPage({
     .eq("document_id", link.document_id);
   const signaturesByPartyId = new Map((signatureRows ?? []).map((s) => [s.party_id, s]));
 
-  const clauses = await getDocumentClauses(admin, document);
+  const isUpload = document.source === "upload";
+  const clauses = isUpload ? [] : await getDocumentClauses(admin, document);
 
   const cardParties: DocumentCardParty[] = [0, 1].map((index) => {
     const party = partyRecords[index];
@@ -136,21 +137,32 @@ export default async function SignPage({
         <div className="flex justify-end">
           <a
             href={`/sign/${token}/pdf`}
+            download
             className="text-sm font-medium text-zinc-500 hover:text-zinc-900 hover:underline"
           >
             Download PDF
           </a>
         </div>
 
-        <DocumentCard
-          effectiveDateText={formatDate(document.effective_date)}
-          parties={cardParties}
-          clauses={clauses.map((c) => ({
-            id: c.id,
-            title: c.title,
-            renderedBody: c.renderedBody,
-          }))}
-        />
+        {isUpload ? (
+          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+            <iframe
+              src={`/sign/${token}/pdf`}
+              title={document.title}
+              className="h-[800px] w-full"
+            />
+          </div>
+        ) : (
+          <DocumentCard
+            effectiveDateText={formatDate(document.effective_date)}
+            parties={cardParties}
+            clauses={clauses.map((c) => ({
+              id: c.id,
+              title: c.title,
+              renderedBody: c.renderedBody,
+            }))}
+          />
+        )}
 
         {mySignature ? (
           <div className="flex flex-col gap-3 rounded-xl border border-green-300 bg-green-50 p-6 text-center">

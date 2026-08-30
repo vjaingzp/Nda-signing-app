@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getLatestPayment } from "@/lib/nda/payment";
+import { getLatestPayment, PAYMENT_AMOUNT_INR } from "@/lib/nda/payment";
 import { formatDateTime } from "@/lib/nda/render-clause";
 import { TestModeNotice } from "@/components/ui/test-mode-notice";
 import { PaymentForm } from "./PaymentForm";
@@ -54,7 +54,7 @@ export default async function PaymentPage({
         <h2 className="font-semibold text-zinc-900">Send for signature</h2>
         <p className="mt-1 text-sm text-zinc-500">One-time fee per document</p>
         <p className="mt-4 text-3xl font-semibold text-zinc-900">
-          ₹499{" "}
+          ₹{PAYMENT_AMOUNT_INR}{" "}
           <span className="align-middle text-sm font-normal text-zinc-400">
             (test amount)
           </span>

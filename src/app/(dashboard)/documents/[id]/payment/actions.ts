@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { hasSucceededPayment } from "@/lib/nda/payment";
+import { hasSucceededPayment, PAYMENT_AMOUNT_CENTS } from "@/lib/nda/payment";
 
 export interface PaymentActionState {
   error?: string;
@@ -54,6 +54,7 @@ export async function simulatePayment(
     document_id: documentId,
     user_id: user.id,
     status: "succeeded",
+    amount_cents: PAYMENT_AMOUNT_CENTS,
     completed_at: new Date().toISOString(),
   });
 

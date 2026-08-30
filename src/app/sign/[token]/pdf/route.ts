@@ -29,7 +29,7 @@ export async function GET(
   return new Response(new Uint8Array(result.bytes), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${result.filename}"`,
+      "Content-Disposition": `inline; filename="${result.filename}"`,
     },
   });
 }

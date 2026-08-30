@@ -1,10 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getDocumentClauses } from "@/lib/nda/get-document-clauses";
 import { generateDocumentPdf, type PdfPartyInfo } from "@/lib/nda/generate-pdf";
+import { stampUploadedPdf, type StampPlacement, type StampSignature } from "@/lib/nda/stamp-uploaded-pdf";
 import { formatDate } from "@/lib/nda/render-clause";
 import { partyDescription, partyLabel, partyRole } from "@/lib/nda/party-format";
 
 const SIGNED_DOCUMENTS_BUCKET = "signed-documents";
+const UPLOADED_AGREEMENTS_BUCKET = "uploaded-agreements";
 
 /**
  * Runs after any signature is recorded (by either the owner or the
@@ -22,7 +24,7 @@ export async function finalizeSignaturesIfComplete(documentId: string): Promise<
   const { data: document } = await admin
     .from("documents")
     .select(
-      "id, title, nda_type, template_slug, status, effective_date, term_months, governing_law"
+      "id, title, source, nda_type, template_slug, status, effective_date, term_months, governing_law, upload_storage_path"
     )
     .eq("id", documentId)
     .single();
@@ -59,24 +61,74 @@ export async function finalizeSignaturesIfComplete(documentId: string): Promise<
     return;
   }
 
-  const pdfParties: PdfPartyInfo[] = parties.map((party, index) => {
-    const signature = signaturesByPartyId.get(party.id);
-    const role = partyRole(party, document.nda_type, index);
-    return {
-      label: partyLabel(role, index),
-      description: partyDescription(party),
-      signatureName: signature?.signer_name ?? party.full_name,
-      signedAt: signature?.signed_at ?? null,
-    };
-  });
+  let pdfBytes: Uint8Array;
 
-  const clauses = await getDocumentClauses(admin, document);
+  if (document.source === "upload") {
+    if (!document.upload_storage_path) return;
 
-  const pdfBytes = await generateDocumentPdf({
-    effectiveDateText: formatDate(document.effective_date),
-    parties: pdfParties,
-    clauses: clauses.map((c) => ({ title: c.title, body: c.renderedBody })),
-  });
+    const { data: original, error: downloadError } = await admin.storage
+      .from(UPLOADED_AGREEMENTS_BUCKET)
+      .download(document.upload_storage_path);
+    if (downloadError || !original) {
+      throw new Error(`Couldn't load the uploaded PDF: ${downloadError?.message}`);
+    }
+
+    const { data: placementRows } = await admin
+      .from("signature_placements")
+      .select("party_role, field_type, page_number, x, y, width, height")
+      .eq("document_id", documentId);
+
+    const placements: StampPlacement[] = (placementRows ?? [])
+      .filter((p) => p.party_role === "uploader" || p.party_role === "counterparty")
+      .map((p) => ({
+        role: p.party_role as "uploader" | "counterparty",
+        fieldType: p.field_type === "date" ? "date" : "signature",
+        pageNumber: p.page_number,
+        x: Number(p.x),
+        y: Number(p.y),
+        width: Number(p.width),
+        height: Number(p.height),
+      }));
+
+    const stampSignatures: StampSignature[] = parties
+      .map((party) => {
+        const signature = signaturesByPartyId.get(party.id);
+        if (!signature || (party.role !== "uploader" && party.role !== "counterparty")) {
+          return null;
+        }
+        return {
+          role: party.role,
+          signerName: signature.signer_name,
+          signedAt: signature.signed_at,
+        };
+      })
+      .filter((s): s is StampSignature => s !== null);
+
+    pdfBytes = await stampUploadedPdf(
+      new Uint8Array(await original.arrayBuffer()),
+      placements,
+      stampSignatures
+    );
+  } else {
+    const pdfParties: PdfPartyInfo[] = parties.map((party, index) => {
+      const signature = signaturesByPartyId.get(party.id);
+      const role = partyRole(party, document.nda_type, index);
+      return {
+        label: partyLabel(role, index),
+        description: partyDescription(party),
+        signatureName: signature?.signer_name ?? party.full_name,
+        signedAt: signature?.signed_at ?? null,
+      };
+    });
+
+    const clauses = await getDocumentClauses(admin, document);
+
+    pdfBytes = await generateDocumentPdf({
+      effectiveDateText: formatDate(document.effective_date),
+      parties: pdfParties,
+      clauses: clauses.map((c) => ({ title: c.title, body: c.renderedBody })),
+    });
+  }
 
   const storagePath = `${documentId}.pdf`;
   const { error: uploadError } = await admin.storage

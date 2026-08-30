@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { NdaType } from "@/types/database";
 import { NewDocumentWizard } from "./NewDocumentWizard";
@@ -28,7 +29,11 @@ export default async function NewDocumentPage() {
         <h1 className="text-2xl font-semibold text-zinc-900">Start a new NDA</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Choose the type of NDA and a starter template. You&apos;ll fill in the
-          details next.
+          details next.{" "}
+          <Link href="/documents/upload" className="font-medium underline">
+            Or upload your own PDF instead
+          </Link>
+          .
         </p>
       </div>
 

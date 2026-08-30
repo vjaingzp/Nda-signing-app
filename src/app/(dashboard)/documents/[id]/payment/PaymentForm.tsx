@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { simulatePayment, type PaymentActionState } from "./actions";
+import { PAYMENT_AMOUNT_INR } from "@/lib/nda/payment";
 
 const initialState: PaymentActionState = {};
 
@@ -30,7 +31,9 @@ export function PaymentForm({ documentId }: { documentId: string }) {
         disabled={pending}
         className="rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {pending ? "Processing test payment…" : "Simulate payment — ₹499 (no real charge)"}
+        {pending
+          ? "Processing test payment…"
+          : `Simulate payment — ₹${PAYMENT_AMOUNT_INR} (no real charge)`}
       </button>
     </form>
   );
