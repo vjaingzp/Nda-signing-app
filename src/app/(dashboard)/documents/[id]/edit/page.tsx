@@ -6,6 +6,7 @@ import { getDocumentClauses } from "@/lib/nda/get-document-clauses";
 import type { NdaType } from "@/types/database";
 import { DetailsForm } from "./DetailsForm";
 import { ClausesEditor } from "./ClausesEditor";
+import { VoidDocumentButton } from "../VoidDocumentButton";
 
 export const metadata: Metadata = {
   title: "Edit NDA | NDA Generator",
@@ -59,7 +60,7 @@ export default async function EditDocumentPage({
   const today = new Date().toISOString().slice(0, 10);
 
   const clauseItems = await getDocumentClauses(supabase, document);
-  const locked = document.status === "completed";
+  const locked = ["partially_signed", "completed", "voided"].includes(document.status);
 
   return (
     <div className="flex flex-col gap-6">
@@ -74,12 +75,38 @@ export default async function EditDocumentPage({
         </p>
       </div>
 
-      {locked && (
+      {document.status === "completed" && (
         <div className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-800">
           This document is fully signed and locked — no further edits are
           possible.{" "}
           <Link href={`/documents/${document.id}/preview`} className="font-medium underline">
             View the signed document
+          </Link>
+          .
+        </div>
+      )}
+
+      {document.status === "partially_signed" && (
+        <div className="flex flex-col gap-2 rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p>
+            This document already has a signature on it and is locked — no
+            further edits are possible, so the party who signed can trust
+            what they agreed to won&apos;t change.{" "}
+            <Link href={`/documents/${document.id}/preview`} className="font-medium underline">
+              View the document
+            </Link>
+            . If you need to change something, void this document and start a
+            new one.
+          </p>
+          <VoidDocumentButton documentId={document.id} />
+        </div>
+      )}
+
+      {document.status === "voided" && (
+        <div className="rounded-md bg-zinc-100 px-4 py-3 text-sm text-zinc-700">
+          This document has been voided and can no longer be edited or signed.{" "}
+          <Link href="/documents/new" className="font-medium underline">
+            Start a new NDA
           </Link>
           .
         </div>

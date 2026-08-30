@@ -115,7 +115,24 @@ export default async function PreviewDocumentPage({
         </div>
       )}
 
-      {isIncomplete && document.status !== "completed" && (
+      {document.status === "partially_signed" && (
+        <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          This document already has a signature on it and is locked — no
+          further edits are possible.
+        </div>
+      )}
+
+      {document.status === "voided" && (
+        <div className="rounded-md bg-zinc-100 px-4 py-3 text-sm text-zinc-700">
+          This document has been voided.{" "}
+          <Link href="/documents/new" className="font-medium underline">
+            Start a new NDA
+          </Link>
+          .
+        </div>
+      )}
+
+      {isIncomplete && !["completed", "voided"].includes(document.status) && (
         <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
           This document isn&apos;t fully filled in yet, so some details below
           appear as placeholders.{" "}

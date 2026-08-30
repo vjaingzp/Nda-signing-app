@@ -17,7 +17,8 @@ export type DocumentStatus =
   | "awaiting_signatures"
   | "partially_signed"
   | "completed"
-  | "expired";
+  | "expired"
+  | "voided";
 export type PartyRole =
   | "disclosing"
   | "receiving"

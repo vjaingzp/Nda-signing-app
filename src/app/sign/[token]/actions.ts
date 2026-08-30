@@ -40,6 +40,16 @@ export async function submitSignature(
     return { error: "This signing link has expired." };
   }
 
+  const { data: existingDocument } = await admin
+    .from("documents")
+    .select("status")
+    .eq("id", link.document_id)
+    .single();
+
+  if (existingDocument?.status === "voided") {
+    return { error: "This document was voided by the sender and can no longer be signed." };
+  }
+
   const hdrs = await headers();
   const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ?? hdrs.get("x-real-ip") ?? null;
   const userAgent = hdrs.get("user-agent");
@@ -70,13 +80,7 @@ export async function submitSignature(
       .eq("id", link.id);
   }
 
-  const { data: document } = await admin
-    .from("documents")
-    .select("status")
-    .eq("id", link.document_id)
-    .single();
-
-  if (document?.status === "draft") {
+  if (existingDocument?.status === "draft") {
     await admin
       .from("documents")
       .update({ status: "awaiting_signatures" })

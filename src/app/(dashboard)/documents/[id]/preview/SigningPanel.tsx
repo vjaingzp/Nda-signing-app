@@ -125,6 +125,18 @@ export function SigningPanel({
     );
   }
 
+  if (status === "voided") {
+    return (
+      <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-6">
+        <p className="font-medium text-zinc-700">This document has been voided.</p>
+        <p className="text-sm text-zinc-500">
+          It can no longer be signed. Any signature collected before voiding no
+          longer applies to a live agreement.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6">
       <h2 className="font-semibold text-zinc-900">Signing</h2>

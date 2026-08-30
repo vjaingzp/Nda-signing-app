@@ -76,6 +76,16 @@ export default async function SignPage({
     );
   }
 
+  if (document.status === "voided") {
+    return (
+      <Shell>
+        <p className="text-center text-sm text-zinc-600">
+          This document was voided by the sender and can no longer be signed.
+        </p>
+      </Shell>
+    );
+  }
+
   const { data: partyRows } = await admin
     .from("document_parties")
     .select("id, role, party_type, full_name, company_name, address, email, sort_order")
