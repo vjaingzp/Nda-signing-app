@@ -1,12 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
-import { generateSigningLink, signAsOwner, type SignActionState } from "../sign-actions";
+import {
+  generateSigningLink,
+  signAsOwner,
+  type GenerateLinkActionState,
+  type SignActionState,
+} from "../sign-actions";
 import { inputClassName } from "@/components/ui/form-field";
 import { DemoSignatureNotice } from "@/components/ui/demo-signature-notice";
 import { formatDateTime } from "@/lib/nda/render-clause";
 
 const initialState: SignActionState = {};
+const initialLinkState: GenerateLinkActionState = {};
 
 interface PartyStatus {
   label: string;
@@ -71,22 +78,21 @@ function OwnerSignForm({
 }
 
 function GenerateLinkButton({ documentId }: { documentId: string }) {
-  const [pending, setPending] = useState(false);
+  const action = generateSigningLink.bind(null, documentId);
+  const [state, formAction, pending] = useActionState(action, initialLinkState);
+
   return (
-    <form
-      action={async () => {
-        setPending(true);
-        await generateSigningLink(documentId);
-        setPending(false);
-      }}
-    >
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-60"
-      >
-        {pending ? "Generating…" : "Generate signing link"}
-      </button>
+    <form action={formAction} className="flex flex-col gap-2">
+      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      <div>
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-60"
+        >
+          {pending ? "Generating…" : "Generate signing link"}
+        </button>
+      </div>
     </form>
   );
 }
@@ -108,12 +114,14 @@ export function SigningPanel({
   ownerParty,
   counterpartyParty,
   signingLinkUrl,
+  isPaid,
 }: {
   documentId: string;
   status: string;
   ownerParty: PartyStatus;
   counterpartyParty: PartyStatus;
   signingLinkUrl: string | null;
+  isPaid: boolean;
 }) {
   if (status === "completed") {
     return (
@@ -168,8 +176,20 @@ export function SigningPanel({
               className={`${inputClassName} font-mono text-xs`}
             />
           </div>
-        ) : (
+        ) : isPaid ? (
           <GenerateLinkButton documentId={documentId} />
+        ) : (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-zinc-500">
+              Sending this document for signature requires payment first.
+            </p>
+            <Link
+              href={`/documents/${documentId}/payment`}
+              className="self-start rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+            >
+              Pay to send for signature
+            </Link>
+          </div>
         )}
       </div>
     </div>

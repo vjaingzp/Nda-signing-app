@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getDocumentClauses } from "@/lib/nda/get-document-clauses";
 import { formatDate } from "@/lib/nda/render-clause";
 import { partyDescription, partyLabel, partyRole } from "@/lib/nda/party-format";
+import { hasSucceededPayment } from "@/lib/nda/payment";
 import { DocumentCard, type DocumentCardParty } from "@/components/nda/DocumentCard";
 import { SigningPanel } from "./SigningPanel";
 
@@ -89,6 +90,8 @@ export default async function PreviewDocumentPage({
     ? `${process.env.NEXT_PUBLIC_APP_URL}/sign/${signingLinkRow.token}`
     : null;
 
+  const isPaid = await hasSucceededPayment(supabase, id);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -101,12 +104,20 @@ export default async function PreviewDocumentPage({
           </Link>
           <h1 className="mt-2 text-2xl font-semibold text-zinc-900">Preview</h1>
         </div>
-        <a
-          href={`/documents/${document.id}/pdf`}
-          className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-        >
-          Download PDF
-        </a>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/documents/${document.id}/payment`}
+            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+          >
+            {isPaid ? "✓ Payment complete" : "Payment"}
+          </Link>
+          <a
+            href={`/documents/${document.id}/pdf`}
+            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+          >
+            Download PDF
+          </a>
+        </div>
       </div>
 
       {document.status === "completed" && (
@@ -160,6 +171,7 @@ export default async function PreviewDocumentPage({
           ownerParty={partyStatuses[0]}
           counterpartyParty={partyStatuses[1]}
           signingLinkUrl={signingLinkUrl}
+          isPaid={isPaid}
         />
       )}
     </div>

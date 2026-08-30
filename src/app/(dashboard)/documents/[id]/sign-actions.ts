@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { finalizeSignaturesIfComplete } from "@/lib/nda/finalize-signatures";
+import { hasSucceededPayment } from "@/lib/nda/payment";
 
 export interface SignActionState {
   error?: string;
@@ -32,8 +33,24 @@ async function getOwnerParty(
   return data;
 }
 
-export async function generateSigningLink(documentId: string): Promise<void> {
+export interface GenerateLinkActionState {
+  error?: string;
+}
+
+// prevState/formData are unused but required to match the (state, payload)
+// shape useActionState calls this with, once bound to documentId.
+export async function generateSigningLink(
+  documentId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _prevState: GenerateLinkActionState,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _formData: FormData
+): Promise<GenerateLinkActionState> {
   const supabase = await createClient();
+
+  if (!(await hasSucceededPayment(supabase, documentId))) {
+    return { error: "Payment is required before a signing link can be generated." };
+  }
 
   const { data: counterparty } = await supabase
     .from("document_parties")
@@ -42,7 +59,7 @@ export async function generateSigningLink(documentId: string): Promise<void> {
     .eq("sort_order", 1)
     .single();
 
-  if (!counterparty) return;
+  if (!counterparty) return {};
 
   const { data: alreadySigned } = await supabase
     .from("signatures")
@@ -51,7 +68,7 @@ export async function generateSigningLink(documentId: string): Promise<void> {
     .eq("party_id", counterparty.id)
     .maybeSingle();
 
-  if (alreadySigned) return;
+  if (alreadySigned) return {};
 
   const { data: existing } = await supabase
     .from("signing_links")
@@ -85,6 +102,7 @@ export async function generateSigningLink(documentId: string): Promise<void> {
   }
 
   revalidatePath(`/documents/${documentId}/preview`);
+  return {};
 }
 
 export async function signAsOwner(
