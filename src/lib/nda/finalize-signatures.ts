@@ -4,6 +4,7 @@ import { generateDocumentPdf, type PdfPartyInfo } from "@/lib/nda/generate-pdf";
 import { stampUploadedPdf, type StampPlacement, type StampSignature } from "@/lib/nda/stamp-uploaded-pdf";
 import { formatDate } from "@/lib/nda/render-clause";
 import { partyDescription, partyLabel, partyRole } from "@/lib/nda/party-format";
+import { addRetentionPeriod } from "@/lib/nda/retention";
 
 const SIGNED_DOCUMENTS_BUCKET = "signed-documents";
 const UPLOADED_AGREEMENTS_BUCKET = "uploaded-agreements";
@@ -142,12 +143,18 @@ export async function finalizeSignaturesIfComplete(documentId: string): Promise<
     throw new Error(`Couldn't store the signed PDF: ${uploadError.message}`);
   }
 
+  const finalizedAt = new Date();
+
   await admin
     .from("documents")
     .update({
       status: "completed",
       final_pdf_storage_path: storagePath,
-      finalized_at: new Date().toISOString(),
+      finalized_at: finalizedAt.toISOString(),
+      // The 30-day storage retention clock starts now, not at document
+      // creation — a draft that sat unfinished for weeks shouldn't eat
+      // into the window a just-signed document gets.
+      expires_at: addRetentionPeriod(finalizedAt),
     })
     .eq("id", documentId);
 }

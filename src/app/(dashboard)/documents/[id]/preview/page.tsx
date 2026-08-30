@@ -6,6 +6,7 @@ import { getDocumentClauses } from "@/lib/nda/get-document-clauses";
 import { formatDate } from "@/lib/nda/render-clause";
 import { partyDescription, partyLabel, partyRole } from "@/lib/nda/party-format";
 import { hasSucceededPayment } from "@/lib/nda/payment";
+import { REMINDER_WINDOW_DAYS, daysUntil } from "@/lib/nda/retention";
 import { DocumentCard, type DocumentCardParty } from "@/components/nda/DocumentCard";
 import { SigningPanel } from "./SigningPanel";
 
@@ -24,7 +25,7 @@ export default async function PreviewDocumentPage({
   const { data: document } = await supabase
     .from("documents")
     .select(
-      "id, title, source, nda_type, template_slug, status, effective_date, term_months, governing_law"
+      "id, title, source, nda_type, template_slug, status, effective_date, term_months, governing_law, expires_at, deleted_at"
     )
     .eq("id", id)
     .single();
@@ -34,6 +35,16 @@ export default async function PreviewDocumentPage({
   }
 
   const isUpload = document.source === "upload";
+  // A template document's PDF is always regenerable live from its clause
+  // rows (editing is locked post-completion, so it can't have drifted),
+  // so storage cleanup only actually costs the user anything for uploads —
+  // there's no original file bytes to reconstruct a stamped copy from.
+  const fileDeleted = isUpload && document.status === "completed" && !!document.deleted_at;
+  const expiringSoonDays =
+    document.status === "completed" && !document.deleted_at
+      ? daysUntil(document.expires_at)
+      : null;
+  const isExpiringSoon = expiringSoonDays !== null && expiringSoonDays <= REMINDER_WINDOW_DAYS;
 
   const { data: partyRows } = await supabase
     .from("document_parties")
@@ -120,13 +131,15 @@ export default async function PreviewDocumentPage({
           >
             {isPaid ? "✓ Payment complete" : "Payment"}
           </Link>
-          <a
-            href={`/documents/${document.id}/pdf`}
-            download
-            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-          >
-            Download PDF
-          </a>
+          {!fileDeleted && (
+            <a
+              href={`/documents/${document.id}/pdf`}
+              download
+              className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+            >
+              Download PDF
+            </a>
+          )}
         </div>
       </div>
 
@@ -140,6 +153,24 @@ export default async function PreviewDocumentPage({
         <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-900">
           This document already has a signature on it and is locked — no
           further edits are possible.
+        </div>
+      )}
+
+      {fileDeleted && (
+        <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-800">
+          This document&apos;s stored file was permanently deleted after our
+          30-day storage retention period. The signature record below is
+          still kept, but the signed PDF itself can no longer be recovered.
+        </div>
+      )}
+
+      {!fileDeleted && isExpiringSoon && (
+        <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          This document will be permanently deleted from storage in{" "}
+          {expiringSoonDays !== null && expiringSoonDays <= 0
+            ? "less than a day"
+            : `${expiringSoonDays} day${expiringSoonDays === 1 ? "" : "s"}`}
+          . Download a copy now to keep it.
         </div>
       )}
 
@@ -166,13 +197,20 @@ export default async function PreviewDocumentPage({
       )}
 
       {isUpload ? (
-        <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-          <iframe
-            src={`/documents/${document.id}/pdf`}
-            title={document.title}
-            className="h-[800px] w-full"
-          />
-        </div>
+        fileDeleted ? (
+          <div className="mx-auto w-full max-w-3xl rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-10 text-center text-sm text-zinc-500">
+            The uploaded file is no longer available — it was deleted per the
+            30-day storage retention policy.
+          </div>
+        ) : (
+          <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+            <iframe
+              src={`/documents/${document.id}/pdf`}
+              title={document.title}
+              className="h-[800px] w-full"
+            />
+          </div>
+        )
       ) : (
         <DocumentCard
           effectiveDateText={formatDate(document.effective_date)}

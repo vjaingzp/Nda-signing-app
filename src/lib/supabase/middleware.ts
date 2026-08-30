@@ -1,7 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/sign", "/api/sign"];
+// "Public" here means "not gated on a Supabase user session" — /api/cron
+// still authenticates itself via a bearer-token check against CRON_SECRET,
+// the same way /api/sign authenticates via its own signing-link token.
+// Neither route ever has a logged-in user (Vercel Cron has no session at
+// all), so without this they'd 307 to /login before their own auth runs.
+const PUBLIC_PATHS = ["/login", "/signup", "/sign", "/api/sign", "/api/cron"];
 
 function isPublicPath(pathname: string) {
   if (pathname === "/") return true;

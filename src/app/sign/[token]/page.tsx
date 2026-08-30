@@ -61,7 +61,7 @@ export default async function SignPage({
   const { data: document } = await admin
     .from("documents")
     .select(
-      "id, title, source, nda_type, template_slug, status, effective_date, term_months, governing_law"
+      "id, title, source, nda_type, template_slug, status, effective_date, term_months, governing_law, deleted_at"
     )
     .eq("id", link.document_id)
     .single();
@@ -100,6 +100,7 @@ export default async function SignPage({
   const signaturesByPartyId = new Map((signatureRows ?? []).map((s) => [s.party_id, s]));
 
   const isUpload = document.source === "upload";
+  const fileDeleted = isUpload && document.status === "completed" && !!document.deleted_at;
   const clauses = isUpload ? [] : await getDocumentClauses(admin, document);
 
   const cardParties: DocumentCardParty[] = [0, 1].map((index) => {
@@ -134,17 +135,26 @@ export default async function SignPage({
 
         <DemoSignatureNotice />
 
-        <div className="flex justify-end">
-          <a
-            href={`/sign/${token}/pdf`}
-            download
-            className="text-sm font-medium text-zinc-500 hover:text-zinc-900 hover:underline"
-          >
-            Download PDF
-          </a>
-        </div>
+        {!fileDeleted && (
+          <div className="flex justify-end">
+            <a
+              href={`/sign/${token}/pdf`}
+              download
+              className="text-sm font-medium text-zinc-500 hover:text-zinc-900 hover:underline"
+            >
+              Download PDF
+            </a>
+          </div>
+        )}
 
-        {isUpload ? (
+        {fileDeleted && (
+          <div className="rounded-md bg-red-50 px-4 py-3 text-center text-sm text-red-800">
+            This document&apos;s stored file was permanently deleted after our
+            30-day storage retention period and can no longer be recovered.
+          </div>
+        )}
+
+        {isUpload && !fileDeleted ? (
           <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
             <iframe
               src={`/sign/${token}/pdf`}
@@ -152,7 +162,7 @@ export default async function SignPage({
               className="h-[800px] w-full"
             />
           </div>
-        ) : (
+        ) : !isUpload ? (
           <DocumentCard
             effectiveDateText={formatDate(document.effective_date)}
             parties={cardParties}
@@ -162,7 +172,7 @@ export default async function SignPage({
               renderedBody: c.renderedBody,
             }))}
           />
-        )}
+        ) : null}
 
         {mySignature ? (
           <div className="flex flex-col gap-3 rounded-xl border border-green-300 bg-green-50 p-6 text-center">

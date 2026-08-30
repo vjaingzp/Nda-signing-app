@@ -34,6 +34,7 @@ src/
     api/payments                     # simulated payment endpoint
     api/sign                         # signing-link validation + signature capture
     api/upload                       # "upload your own agreement" flow
+    api/cron/cleanup-expired-documents # 30-day storage retention sweep
   lib/
     supabase/client.ts               # browser Supabase client
     supabase/server.ts               # server (RSC/route handler) Supabase client, RLS applies
@@ -59,8 +60,9 @@ for the full schema with comments. Highlights:
 - `templates` / `clause_library` — the 5 starter templates and their default
   clauses (core = guided-fields-only, optional = fully editable/removable).
 - `documents` — one row per NDA (template-generated or uploaded PDF).
-  `expires_at` is a generated column (`created_at + 30 days`) used for the
-  auto-deletion reminder/cleanup job.
+  `expires_at` defaults to `created_at + 30 days` but is overwritten to
+  `finalized_at + 30 days` once a document is fully signed — see
+  [Storage retention](#storage-retention) below.
 - `document_parties`, `document_clauses` — per-document snapshot of parties
   and clause text, so edits never mutate the shared template library.
 - `signature_placements` — marked signature/date locations, used for both
@@ -97,10 +99,32 @@ policy, so documents stay un-enumerable.
 ## Deployment
 
 Deploy to Vercel and set the same environment variables from
-`.env.local.example` in the Vercel project settings. The 30-day
-auto-deletion sweep is intended to run as a Vercel Cron job hitting an API
-route (added when that feature is built) — Supabase's own `pg_cron` is an
-alternative if you'd rather run it in the database.
+`.env.local.example` in the Vercel project settings, including
+`CRON_SECRET` (see [Storage retention](#storage-retention) below).
+
+## Storage retention
+
+Once a document is fully signed, its stored PDF (and, for an uploaded
+document, the original file) is deleted from Storage 30 days later —
+`documents.expires_at` is set to `finalized_at + 30 days` at the moment it
+completes. The `documents` row itself, along with its parties, signatures,
+and payment history, is kept indefinitely as an audit trail; only the file
+bytes are removed. The dashboard and a document's preview page show a
+reminder banner starting 7 days before deletion so there's time to download
+a copy first.
+
+The sweep runs as the `GET /api/cron/cleanup-expired-documents` route,
+scheduled daily via `vercel.json`. It only responds to requests carrying
+`Authorization: Bearer <CRON_SECRET>` — set the same `CRON_SECRET` value in
+your Vercel project's environment variables and Vercel Cron will send it
+automatically. (Supabase's own `pg_cron` is an alternative if you'd rather
+run the sweep from the database instead.)
+
+To trigger it manually during local development:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/cleanup-expired-documents
+```
 
 ## Status
 
