@@ -28,6 +28,7 @@ export type PartyRole =
 export type PartyType = "individual" | "business";
 export type ClauseCategory = "core" | "optional";
 export type PaymentStatus = "pending" | "succeeded" | "failed";
+export type SignatureStyle = "dancing_script" | "great_vibes" | "caveat" | "pacifico";
 
 export type GuidedField = {
   key: string;
@@ -244,13 +245,19 @@ export type SignatureRecord = {
   consent_given: boolean;
   consent_text: string;
   typed_signature: string;
+  signature_style: SignatureStyle;
   ip_address: string | null;
   user_agent: string | null;
   signed_at: string;
 };
 type SignatureInsert = Pick<
   SignatureRecord,
-  "document_id" | "party_id" | "party_role" | "signer_name" | "typed_signature"
+  | "document_id"
+  | "party_id"
+  | "party_role"
+  | "signer_name"
+  | "typed_signature"
+  | "signature_style"
 > &
   Partial<
     Pick<

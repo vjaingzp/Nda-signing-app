@@ -1,4 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { createSignatureFontEmbedder } from "./signature-font-bytes";
+import type { SignatureStyle } from "./signature-styles";
 
 export interface StampPlacement {
   role: "uploader" | "counterparty";
@@ -16,6 +18,7 @@ export interface StampSignature {
   role: "uploader" | "counterparty";
   signerName: string;
   signedAt: string; // ISO timestamp
+  signatureStyle: SignatureStyle;
 }
 
 function formatShortDate(iso: string): string {
@@ -39,6 +42,7 @@ export async function stampUploadedPdf(
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(originalBytes);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const embedSignatureFont = createSignatureFontEmbedder(pdfDoc);
   const signatureByRole = new Map(signatures.map((s) => [s.role, s]));
 
   for (const placement of placements) {
@@ -48,8 +52,8 @@ export async function stampUploadedPdf(
     const signature = signatureByRole.get(placement.role);
     if (!signature) continue;
 
-    const text =
-      placement.fieldType === "date" ? formatShortDate(signature.signedAt) : signature.signerName;
+    const isSignatureField = placement.fieldType === "signature";
+    const text = isSignatureField ? signature.signerName : formatShortDate(signature.signedAt);
 
     const page = pdfDoc.getPage(pageIndex);
     const { width: pageWidth, height: pageHeight } = page.getSize();
@@ -62,13 +66,16 @@ export async function stampUploadedPdf(
     // height minus the distance from the top to the box's bottom edge.
     const boxBottom = pageHeight - (placement.y + placement.height) * pageHeight;
 
-    const fontSize = Math.max(8, Math.min(14, boxHeight * 0.6));
+    // Cursive signature fonts read better a bit larger than a plain date
+    // stamp at the same box height, so the cap differs by field type.
+    const fontSize = Math.max(8, Math.min(isSignatureField ? 20 : 14, boxHeight * 0.6));
+    const textFont = isSignatureField ? await embedSignatureFont(signature.signatureStyle) : font;
 
     page.drawText(text, {
       x: boxLeft + 2,
       y: boxBottom + (boxHeight - fontSize) / 2,
       size: fontSize,
-      font,
+      font: textFont,
       color: rgb(0.1, 0.1, 0.5),
       maxWidth: boxWidth - 4,
     });

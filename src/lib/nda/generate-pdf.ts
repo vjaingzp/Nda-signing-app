@@ -1,5 +1,7 @@
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import { formatDateTime } from "./render-clause";
+import { createSignatureFontEmbedder } from "./signature-font-bytes";
+import type { SignatureStyle } from "./signature-styles";
 
 export interface PdfPartyInfo {
   label: string;
@@ -7,6 +9,8 @@ export interface PdfPartyInfo {
   signatureName: string | null;
   /** ISO timestamp if this party has signed; renders a signed block instead of blank lines. */
   signedAt?: string | null;
+  /** Which handwriting font renders the signature line; defaults if null/omitted. */
+  signatureStyle?: SignatureStyle | null;
 }
 
 export interface PdfClauseInfo {
@@ -56,6 +60,7 @@ export async function generateDocumentPdf(params: GeneratePdfParams): Promise<Ui
   pdfDoc.setTitle("Non-Disclosure Agreement");
   const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+  const embedSignatureFont = createSignatureFontEmbedder(pdfDoc);
 
   let page: PDFPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   let y = PAGE_HEIGHT - MARGIN;
@@ -73,6 +78,7 @@ export async function generateDocumentPdf(params: GeneratePdfParams): Promise<Ui
       lineHeight?: number;
       spacingAfter?: number;
       align?: "left" | "center";
+      font?: PDFFont;
     } = {}
   ) {
     const {
@@ -81,8 +87,9 @@ export async function generateDocumentPdf(params: GeneratePdfParams): Promise<Ui
       lineHeight = 15,
       spacingAfter = 10,
       align = "left",
+      font: fontOverride,
     } = opts;
-    const useFont = bold ? boldFont : font;
+    const useFont = fontOverride ?? (bold ? boldFont : font);
     const lines = wrapText(text, useFont, size);
 
     for (const line of lines) {
@@ -133,7 +140,15 @@ export async function generateDocumentPdf(params: GeneratePdfParams): Promise<Ui
   for (const party of parties) {
     addParagraph(party.label, { bold: true, spacingAfter: 8 });
     if (party.signedAt) {
-      addParagraph(`Signed by: ${party.signatureName}`, { spacingAfter: 6 });
+      addParagraph("Signature:", { size: 9, spacingAfter: 2 });
+      const signatureFont = await embedSignatureFont(party.signatureStyle);
+      addParagraph(party.signatureName ?? "", {
+        font: signatureFont,
+        size: 26,
+        lineHeight: 30,
+        spacingAfter: 6,
+      });
+      addParagraph(`Name: ${party.signatureName}`, { spacingAfter: 6 });
       addParagraph(`Date: ${formatDateTime(party.signedAt)}`, { spacingAfter: 24 });
     } else {
       addParagraph("Signature: ______________________________", { spacingAfter: 10 });

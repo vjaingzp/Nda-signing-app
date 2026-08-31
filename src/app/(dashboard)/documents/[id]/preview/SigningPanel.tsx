@@ -11,6 +11,8 @@ import {
 import { inputClassName } from "@/components/ui/form-field";
 import { DemoSignatureNotice } from "@/components/ui/demo-signature-notice";
 import { formatDateTime } from "@/lib/nda/render-clause";
+import { SignaturePicker } from "@/components/nda/SignaturePicker";
+import { DEFAULT_SIGNATURE_STYLE, type SignatureStyle } from "@/lib/nda/signature-styles";
 
 const initialState: SignActionState = {};
 const initialLinkState: GenerateLinkActionState = {};
@@ -32,6 +34,8 @@ function OwnerSignForm({
   const action = signAsOwner.bind(null, documentId);
   const [state, formAction, pending] = useActionState(action, initialState);
   const [consentChecked, setConsentChecked] = useState(false);
+  const [signerName, setSignerName] = useState(party.fullName);
+  const [signatureStyle, setSignatureStyle] = useState<SignatureStyle>(DEFAULT_SIGNATURE_STYLE);
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
@@ -43,11 +47,15 @@ function OwnerSignForm({
           id="ownerSignerName"
           name="signerName"
           type="text"
-          defaultValue={party.fullName}
+          value={signerName}
+          onChange={(e) => setSignerName(e.target.value)}
           className={inputClassName}
           required
         />
       </div>
+
+      <input type="hidden" name="signatureStyle" value={signatureStyle} />
+      <SignaturePicker name={signerName} value={signatureStyle} onChange={setSignatureStyle} />
 
       <label className="flex items-start gap-2 text-sm text-zinc-700">
         <input

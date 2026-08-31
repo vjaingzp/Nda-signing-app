@@ -1,5 +1,33 @@
 @import "tailwindcss";
 
+/* Signature style fonts — self-hosted so the same files back both this
+   @font-face (on-screen preview) and the server-side pdf-lib embedding in
+   src/lib/nda/signature-font-bytes.ts, guaranteeing the PDF matches what
+   was picked. DancingScript and Caveat are variable fonts; the browser
+   just renders their default instance. */
+@font-face {
+  font-family: "Signature Dancing Script";
+  src: url("/fonts/signatures/DancingScript.ttf") format("truetype");
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Signature Great Vibes";
+  src: url("/fonts/signatures/GreatVibes.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Signature Caveat";
+  src: url("/fonts/signatures/Caveat.ttf") format("truetype");
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Signature Pacifico";
+  src: url("/fonts/signatures/Pacifico.ttf") format("truetype");
+  font-display: swap;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

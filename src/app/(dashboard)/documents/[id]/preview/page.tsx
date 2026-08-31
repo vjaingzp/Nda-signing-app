@@ -55,7 +55,7 @@ export default async function PreviewDocumentPage({
 
   const { data: signatureRows } = await supabase
     .from("signatures")
-    .select("party_id, signer_name, signed_at")
+    .select("party_id, signer_name, signed_at, signature_style")
     .eq("document_id", id);
   const signaturesByPartyId = new Map((signatureRows ?? []).map((s) => [s.party_id, s]));
 
@@ -105,6 +105,7 @@ export default async function PreviewDocumentPage({
         description: partyDescription(party),
         signerName: signature?.signer_name ?? party?.full_name ?? null,
         signedAt: signature?.signed_at ?? null,
+        signatureStyle: signature?.signature_style ?? null,
       };
     });
     const clauses = await getDocumentClauses(supabase, document);

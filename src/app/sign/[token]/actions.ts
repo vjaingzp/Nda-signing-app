@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { finalizeSignaturesIfComplete } from "@/lib/nda/finalize-signatures";
+import { DEFAULT_SIGNATURE_STYLE, isSignatureStyle } from "@/lib/nda/signature-styles";
 
 export interface SignActionState {
   error?: string;
@@ -17,6 +18,10 @@ export async function submitSignature(
 ): Promise<SignActionState> {
   const signerName = formData.get("signerName");
   const consent = formData.get("consent");
+  const signatureStyleInput = formData.get("signatureStyle");
+  const signatureStyle = isSignatureStyle(signatureStyleInput)
+    ? signatureStyleInput
+    : DEFAULT_SIGNATURE_STYLE;
 
   if (typeof signerName !== "string" || !signerName.trim()) {
     return { error: "Enter your name to sign." };
@@ -61,6 +66,7 @@ export async function submitSignature(
     signing_link_id: link.id,
     signer_name: signerName.trim(),
     typed_signature: signerName.trim(),
+    signature_style: signatureStyle,
     consent_given: true,
     ip_address: ip,
     user_agent: userAgent,

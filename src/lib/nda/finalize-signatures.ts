@@ -43,7 +43,7 @@ export async function finalizeSignaturesIfComplete(documentId: string): Promise<
 
   const { data: signatureRows } = await admin
     .from("signatures")
-    .select("party_id, signer_name, signed_at")
+    .select("party_id, signer_name, signed_at, signature_style")
     .eq("document_id", documentId);
 
   const signaturesByPartyId = new Map(
@@ -101,6 +101,7 @@ export async function finalizeSignaturesIfComplete(documentId: string): Promise<
           role: party.role,
           signerName: signature.signer_name,
           signedAt: signature.signed_at,
+          signatureStyle: signature.signature_style,
         };
       })
       .filter((s): s is StampSignature => s !== null);
@@ -119,6 +120,7 @@ export async function finalizeSignaturesIfComplete(documentId: string): Promise<
         description: partyDescription(party),
         signatureName: signature?.signer_name ?? party.full_name,
         signedAt: signature?.signed_at ?? null,
+        signatureStyle: signature?.signature_style ?? null,
       };
     });
 

@@ -4,6 +4,8 @@ import { useActionState, useState } from "react";
 import { submitSignature, type SignActionState } from "./actions";
 import { inputClassName } from "@/components/ui/form-field";
 import { DemoSignatureNotice } from "@/components/ui/demo-signature-notice";
+import { SignaturePicker } from "@/components/nda/SignaturePicker";
+import { DEFAULT_SIGNATURE_STYLE, type SignatureStyle } from "@/lib/nda/signature-styles";
 
 const initialState: SignActionState = {};
 
@@ -19,6 +21,8 @@ export function SignForm({
   const action = submitSignature.bind(null, token);
   const [state, formAction, pending] = useActionState(action, initialState);
   const [consentChecked, setConsentChecked] = useState(false);
+  const [signerName, setSignerName] = useState(defaultName);
+  const [signatureStyle, setSignatureStyle] = useState<SignatureStyle>(DEFAULT_SIGNATURE_STYLE);
 
   if (state.success) {
     return (
@@ -43,14 +47,19 @@ export function SignForm({
           id="signerName"
           name="signerName"
           type="text"
-          defaultValue={defaultName}
+          value={signerName}
+          onChange={(e) => setSignerName(e.target.value)}
           className={inputClassName}
           required
         />
         <p className="text-xs text-zinc-500">
-          Typing your name here acts as your signature.
+          Typing your name and choosing a style below is what becomes your
+          signature.
         </p>
       </div>
+
+      <input type="hidden" name="signatureStyle" value={signatureStyle} />
+      <SignaturePicker name={signerName} value={signatureStyle} onChange={setSignatureStyle} />
 
       <label className="flex items-start gap-2 text-sm text-zinc-700">
         <input

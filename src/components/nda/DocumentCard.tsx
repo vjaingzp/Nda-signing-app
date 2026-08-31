@@ -1,10 +1,12 @@
 import { formatDateTime } from "@/lib/nda/render-clause";
+import { signatureStyleDef } from "@/lib/nda/signature-styles";
 
 export interface DocumentCardParty {
   label: string;
   description: string;
   signerName: string | null;
   signedAt: string | null;
+  signatureStyle?: string | null;
 }
 
 export interface DocumentCardClause {
@@ -71,9 +73,16 @@ export function DocumentCard({
               <p className="text-sm font-semibold">{party.label}</p>
               {party.signedAt ? (
                 <>
-                  <div className="text-sm text-green-700">
-                    ✓ Signed by {party.signerName}
+                  <p className="text-xs font-medium uppercase tracking-wide text-green-700">
+                    ✓ Signed
+                  </p>
+                  <div
+                    className="border-b border-zinc-200 pb-2 text-3xl leading-tight text-zinc-900"
+                    style={{ fontFamily: signatureStyleDef(party.signatureStyle).cssFontFamily }}
+                  >
+                    {party.signerName}
                   </div>
+                  <div className="text-sm text-zinc-600">{party.signerName}</div>
                   <div className="text-sm text-zinc-500">
                     {formatDateTime(party.signedAt)}
                   </div>

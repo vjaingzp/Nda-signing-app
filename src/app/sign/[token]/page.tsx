@@ -95,7 +95,7 @@ export default async function SignPage({
 
   const { data: signatureRows } = await admin
     .from("signatures")
-    .select("party_id, signer_name, signed_at")
+    .select("party_id, signer_name, signed_at, signature_style")
     .eq("document_id", link.document_id);
   const signaturesByPartyId = new Map((signatureRows ?? []).map((s) => [s.party_id, s]));
 
@@ -112,6 +112,7 @@ export default async function SignPage({
       description: partyDescription(party),
       signerName: signature?.signer_name ?? party?.full_name ?? null,
       signedAt: signature?.signed_at ?? null,
+      signatureStyle: signature?.signature_style ?? null,
     };
   });
 
