@@ -8,8 +8,8 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ redirectTo?: string }>;
+  searchParams: Promise<{ redirectTo?: string; error?: string }>;
 }) {
-  const { redirectTo } = await searchParams;
-  return <LoginForm redirectTo={redirectTo} />;
+  const { redirectTo, error } = await searchParams;
+  return <LoginForm redirectTo={redirectTo} demoError={error === "demo-unavailable"} />;
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loginDemo } from "@/app/(auth)/actions";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -21,10 +22,18 @@ export default async function Home() {
         Choose a template, fill in the details, and get a signed document
         with a shareable link — no account needed for the other party.
       </p>
-      <div className="mt-8 flex gap-4">
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+        <form action={loginDemo}>
+          <button
+            type="submit"
+            className="rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+          >
+            Try the demo
+          </button>
+        </form>
         <Link
           href="/signup"
-          className="rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+          className="rounded-md border border-zinc-300 bg-white px-5 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
         >
           Get started
         </Link>
@@ -35,6 +44,10 @@ export default async function Home() {
           Log in
         </Link>
       </div>
+      <p className="mt-3 text-xs text-zinc-400">
+        The demo account is shared with other visitors — don&apos;t enter
+        anything you wouldn&apos;t want a stranger to see or change.
+      </p>
     </div>
   );
 }

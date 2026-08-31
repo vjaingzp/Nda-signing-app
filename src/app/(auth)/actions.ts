@@ -76,6 +76,30 @@ export async function login(
   redirect(typeof redirectTo === "string" && redirectTo ? redirectTo : "/dashboard");
 }
 
+/**
+ * One-click login as the seeded read/write demo account, for visitors who
+ * want to try the app without signing up. Credentials live in env vars
+ * (not hardcoded) so the demo account can be rotated without a code
+ * change; see README for how it's seeded.
+ */
+export async function loginDemo() {
+  const email = process.env.DEMO_USER_EMAIL;
+  const password = process.env.DEMO_USER_PASSWORD;
+
+  if (!email || !password) {
+    redirect("/login?error=demo-unavailable");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    redirect("/login?error=demo-unavailable");
+  }
+
+  redirect("/dashboard");
+}
+
 export async function logout() {
   const supabase = await createClient();
   await supabase.auth.signOut();
