@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   title: "Dashboard | NDA Generator",
 };
 
+// Once signing has started, /edit and /placements are locked, read-only
+// views — the actual content, signatures, and Download PDF all live on
+// /preview, so a locked document should link straight there instead of
+// making the reader find their way past the locked editor first.
+const LOCKED_STATUSES = ["partially_signed", "completed", "voided"];
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -78,9 +84,11 @@ export default async function DashboardPage() {
         <ul className="divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white">
           {documents.map((doc) => {
             const isUpload = doc.source === "upload";
-            const href = isUpload
-              ? `/documents/${doc.id}/placements`
-              : `/documents/${doc.id}/edit`;
+            const href = LOCKED_STATUSES.includes(doc.status)
+              ? `/documents/${doc.id}/preview`
+              : isUpload
+                ? `/documents/${doc.id}/placements`
+                : `/documents/${doc.id}/edit`;
             const isExpiringSoon = expiringSoon.some((d) => d.id === doc.id);
             return (
               <li key={doc.id}>
