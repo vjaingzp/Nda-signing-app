@@ -4,9 +4,16 @@ Generate a one-way or mutual NDA from a starter template — or upload your
 own PDF — edit it, preview it, and send it out for a simulated e-signature
 through a shareable link that needs no account on the other end.
 
-**Live demo:** _[add your deployed URL here after following Deployment
-below]_ · click **Try the demo** on the landing page for a one-click login,
-no signup required.
+**Live demo:** [nda-signing-app.vercel.app](https://nda-signing-app.vercel.app)
+— click **Try the demo** on the landing page for a one-click login, or sign
+in manually with:
+
+- **Email:** `demo@nda-generator.dev`
+- **Password:** `NdaDemo2026!`
+
+It's a shared, publicly-writable account seeded with two example
+documents (one draft, one fully signed) — don't put anything in it you'd
+mind a stranger changing.
 
 This is a **portfolio/demo project**, not a live paid product: payment and
 e-signing are realistic simulated flows, not real payment or e-signature
@@ -70,17 +77,8 @@ and preview page start showing a reminder 7 days out.
 
 ## Demo account
 
-A shared, publicly-writable demo account is seeded with two example
-documents — one draft, one fully signed — so a visitor has something to
-look at immediately:
-
-- **Email:** `demo@nda-generator.dev`
-- **Password:** `NdaDemo2026!`
-
-Click **Try the demo** on the landing page or login screen for a one-click
-login instead of typing these in. Because it's a shared account, anyone can
-edit or delete its contents — don't put anything in it you'd mind a
-stranger changing. See [Setup](#setup) for how to (re)create it.
+Credentials are at the top of this README. See [Setup](#setup) below for
+how to (re)create the account and its two seeded documents.
 
 ## Tech stack
 
